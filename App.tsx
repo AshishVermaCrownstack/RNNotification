@@ -8,7 +8,8 @@
  * @format
  */
 
-import React from 'react';
+import messaging from '@react-native-firebase/messaging';
+import React, { useEffect } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -18,42 +19,31 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
+import PushNotification, { Importance } from 'react-native-push-notification';
 
 import {
   Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-const Section: React.FC<{
-  title: string;
-}> = ({children, title}) => {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+export const getFmcToken = async () => {
+  await messaging().requestPermission();
+  try {
+    const fmcToken = await messaging().getToken();
+    console.log('FmcToken : ', fmcToken);
+  } catch (error) {
+    console.log('Error in getFmcToken :', error);
+  }
 };
+
+PushNotification.createChannel(
+  {
+    channelId: 'RNNotification', // (required)
+    channelName: 'RNNotification', // (required)
+    importance: Importance.HIGH, // (optional) default: Importance.HIGH. Int value of the Android notification importance
+    vibrate: true, // (optional) default: true. Creates the default vibration pattern if true.
+  },
+  created => console.log(`createChannel returned '${created}'`), // (optional) callback returns whether the channel was created, false means it already existed.
+);
 
 const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
@@ -62,33 +52,32 @@ const App = () => {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  useEffect(()=>{
+    getFmcToken();
+    const unsubscribe = messaging().onMessage( async (remoteMessage:any) => {
+      
+      console.log( 'Message handled in foreground!',remoteMessage )
+
+      PushNotification.localNotification({
+        channelId:'RNNotification',
+        title:remoteMessage.notification?.title,
+        message:remoteMessage.notification?.body!
+      })
+    });
+    return unsubscribe;
+  },[])
+
   return (
     <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
         <View
           style={{
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
+            justifyContent:'center',
+            alignItems:'center',
+            height:'100%'
           }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+            <Text style={{fontWeight:'bold', fontSize:18}}>Welcome to RN-Notification</Text>
         </View>
-      </ScrollView>
     </SafeAreaView>
   );
 };
